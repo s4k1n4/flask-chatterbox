@@ -1,0 +1,78 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Chat App</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main-container">
+        <div class="sidebar">
+            <h3>Users Online</h3>
+            <ul id="user_list"></ul>
+        </div>
+        <div class="chat-window">
+            <nav>
+                <div class="container">
+                    <h1 class="logo">Chatterbox</h1>
+                </div>
+            </nav>
+            <ul id="messages"></ul>
+            <div id="typing_indicator"></div>
+            <form id="chat_form">
+                <input id="message_input" autocomplete="off" placeholder="Enter message"/>
+                <button id="send_button">Send</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const socket = io();
+            let typingTimer;
+
+            socket.on('user_list', (users) => {
+                const userList = document.getElementById('user_list');
+                userList.innerHTML = '';
+                users.forEach((user) => {
+                    let item = document.createElement('li');
+                    item.textContent = user;
+                    userList.appendChild(item);
+                });
+            });
+
+            socket.on('message', (msg) => {
+                const messages = document.getElementById('messages');
+                let item = document.createElement('li');
+                item.textContent = msg;
+                messages.appendChild(item);
+                messages.scrollTop = messages.scrollHeight;
+            });
+
+            socket.on('typing', (data) => {
+                const indicator = document.getElementById('typing_indicator');
+                indicator.textContent = data.isTyping ? `Anonymous is typing...` : '';
+            });
+
+            document.getElementById('chat_form').onsubmit = (e) => {
+                e.preventDefault();
+                const input = document.getElementById('message_input');
+                if (input.value) {
+                    socket.send(input.value);
+                    socket.emit('typing', { isTyping: false });
+                    clearTimeout(typingTimer);
+                    input.value = '';
+                }
+            };
+            
+            const messageInput = document.getElementById('message_input');
+            messageInput.addEventListener('input', () => {
+                clearTimeout(typingTimer);
+                socket.emit('typing', { isTyping: true });
+                typingTimer = setTimeout(() => {
+                    socket.emit('typing', { isTyping: false });
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
